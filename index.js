@@ -97,11 +97,18 @@ Main.prototype.start = function (callback) {
         logger.info('Worker ' + worker.process.pid + ' disconnected.');
       });
 
-      cluster.on('exit', function (worker) {
+      cluster.on('exit', function (worker, code, signal) {
 
         // if it purposely destroyed itself, then do no re-spawn.
         if (!worker.suicide) {
-          logger.error('Worker exited unexpectedly. Spawning new worker');
+          var message = 'Worker exited unexpectedly. Spawning new worker. Code: ' + code + ', Signal: ' + signal;
+          
+          if (worker.error && worker.error.stack) {
+            message += ', Error: ' + error.stack;
+          }
+
+          logger.error(message);
+
           var child = cluster.fork();
           logger.debug('Restarting child with pid: ' + child.process.pid + '...');
         }
