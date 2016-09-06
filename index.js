@@ -6,6 +6,9 @@ var mixdownWorker = require('./lib/worker.js');
 var path = require('path');
 var packageJSON = require(path.join(process.cwd(), '/package.json'));
 
+// added to store worker info to Graphite, so vast-plugins is a must for mixdown-server:
+var Metrics = require('../vast-plugins/lib/metrics.js');
+
 // Export the factory
 module.exports.create = function(mixdown, options) {
   var main = new Main(mixdown, options);
@@ -146,6 +149,19 @@ Main.prototype.start = function(callback) {
             logger.debug('respawned child ready id: ' + child.process.pid);
             self.workers[child.process.pid] = child;
           }
+
+          // start logging to Graphite when this happens:
+          if (!metrics && Metrics) {
+            //this.mixdown.services[0].id
+            var metricsOptions = this.mixdown.services[0].plugins.metrics.options;
+            // environment shouldn't be app id but something is wrong with mixdown apps (env, always undefined) so I just added it there that dummy way too...
+            var metricsID = {appName: this.mixdown.services[0].id + '.' + this.mixdown.services[0].id, environment: 'undefined'};
+
+            var metrics = new Metrics(_.extend(metricsID, metricsOptions));
+          }
+          if (metrics && metrics.increment) {
+            metrics.increment('dead-worker');        
+          }
         });
         }
       });
@@ -154,7 +170,7 @@ Main.prototype.start = function(callback) {
 
     } 
     else {
-      //cluser is on, and this is a worker!
+      //cluster is on, and this is a worker!
       logger.info("new worker Worker id: "+process.pid);
 
       try {
