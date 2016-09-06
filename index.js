@@ -64,10 +64,10 @@ Main.prototype.start = function (callback) {
       }
     }
 
-    if (this.metrics && metrics.increment) {
+    if (this.metrics && this.metrics.increment) {
       this.metrics.increment(metricsName);        
     }
-  }
+  };
 
   // this reload listener just logs the reload info.
   mixdown.on('reload', function () {
