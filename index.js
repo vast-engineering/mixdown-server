@@ -51,24 +51,6 @@ Main.prototype.start = function (callback) {
   var mixdown = this.mixdown;
   var options = this.options;
 
-  var metricsIncrement = function(metricsName) {
-    metricsName = metricsName || 'undefined';
-
-    if (!this.metrics && Metrics) {
-      var metricsOptions = mixdown.services[0].plugins.metrics.options;
-      // environment is for some reason always undefined so leave it that way (as string)...:
-      var metricsID = {appName: mixdown.services[0].id + '.' + mixdown.services[0].id, environment: 'undefined'};
-
-      if (metricsOptions && metricsID) {
-        this.metrics = new Metrics(_.extend(metricsID, metricsOptions));
-      }
-    }
-
-    if (this.metrics && this.metrics.increment) {
-      this.metrics.increment(metricsName);        
-    }
-  };
-
   // this reload listener just logs the reload info.
   mixdown.on('reload', function () {
     logServerInfo(self, 'Mixdown reloaded. ');
@@ -116,9 +98,6 @@ Main.prototype.start = function (callback) {
 
       cluster.on('disconnect', function (worker) {
         logger.info('Worker ' + worker.process.pid + ' disconnected.');
-
-        // start logging to Graphite when this happens:
-        metricsIncrement('disconnected-worker');
       });
 
       cluster.on('exit', function (worker, code, signal) {
@@ -137,7 +116,16 @@ Main.prototype.start = function (callback) {
           logger.debug('Restarting child with pid: ' + child.process.pid + '...');
 
           // start logging to Graphite when this happens:
-          metricsIncrement('dead-worker');
+          if (!metrics && Metrics) {
+            var metricsOptions = this.mixdown.apps.carfax.config.plugins.metrics.options;
+            // environment shouldn't be app id but something is wrong with mixdown apps so I just added it there...
+            var metricsID = {appName: this.mixdown.apps.carfax.config.id, environment: this.mixdown.apps.carfax.config.id};
+
+            var metrics = new Metrics(_.extend(metricsID, metricsOptions));
+          }
+          if (metrics && metrics.increment) {
+            metrics.increment('dead-worker');        
+          }
         }
       });
 
@@ -154,9 +142,6 @@ Main.prototype.start = function (callback) {
       catch (e) {
         if (_.isFunction(callback)) callback(e, self);
       }
-
-      // start logging to Graphite when this happens:
-      metricsIncrement('created-worker');
     }
   }
   else if (!options.cluster.on) {
