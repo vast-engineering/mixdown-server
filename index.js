@@ -2,6 +2,9 @@ var _ = require('lodash');
 var cluster = require('cluster');
 var Worker = require('./lib/worker.js');
 
+// added to store worker info to Graphite, so vast-plugins is a must for mixdown-server:
+var Metrics = require('../vast-plugins/lib/metrics.js');
+
 // Export the factory
 module.exports.create = function (mixdown, options) {
   return new Main(mixdown, options);
@@ -111,6 +114,18 @@ Main.prototype.start = function (callback) {
 
           var child = cluster.fork();
           logger.debug('Restarting child with pid: ' + child.process.pid + '...');
+
+          // start logging to Graphite when this happens:
+          if (!metrics && Metrics) {
+            var metricsOptions = this.mixdown.apps.carfax.config.plugins.metrics.options;
+            // environment shouldn't be app id but something is wrong with mixdown apps so I just added it there...
+            var metricsID = {appName: this.mixdown.apps.carfax.config.id, environment: this.mixdown.apps.carfax.config.id};
+
+            var metrics = new Metrics(_.extend(metricsID, metricsOptions));
+          }
+          if (metrics && metrics.increment) {
+            metrics.increment('died-worker');        
+          }
         }
       });
 
