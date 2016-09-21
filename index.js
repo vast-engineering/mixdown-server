@@ -116,7 +116,7 @@ Main.prototype.start = function (callback) {
           logger.debug('Restarting child with pid: ' + child.process.pid + '...');
 
           // start logging to Graphite when this happens:
-          if (!metrics && Metrics) {
+          if (this.mixdown && this.mixdown.services && this.mixdown.services[0] && this.mixdown.services[0].plugins && this.mixdown.services[0].plugins.metrics && this.mixdown.services[0].plugins.metrics.options && !metrics && Metrics) {
             var metricsOptions = this.mixdown.services[0].plugins.metrics.options;
             // environment shouldn't be app id but something is wrong with mixdown apps (env, always undefined) so I just added it there that dummy way too...
             var metricsID = {appName: this.mixdown.services[0].id + '.' + this.mixdown.services[0].id, environment: 'undefined'};
